@@ -253,8 +253,6 @@
     )
     (if (<= amount (get total-supplied pool))
         (begin
-            ;; Transfer tokens to recipient
-            ;; Verify return of tokens + fee in same transaction
             ;; Update pool balance
             (map-set lending-pools token-name
                 (merge pool {
@@ -265,4 +263,34 @@
         )
         ERR-INSUFFICIENT-BALANCE
     ))
+)
+
+;; Utility Functions
+
+(define-read-only (get-pool-utilization (token-name (string-ascii 32)))
+    (let (
+        (pool (unwrap! (map-get? lending-pools token-name) (err u404)))
+    )
+    (if (> (get total-supplied pool) u0)
+        (ok (/ (* (get total-borrowed pool) u100) (get total-supplied pool)))
+        (ok u0)
+    ))
+)
+
+(define-read-only (get-user-rewards (user principal))
+    (map-get? user-balances user)
+)
+
+(define-read-only (get-proposal (proposal-id uint))
+    (map-get? governance-proposals proposal-id)
+)
+
+(define-read-only (get-vote-status 
+    (user principal) 
+    (proposal-id uint))
+    (map-get? user-votes { user: user, proposal-id: proposal-id })
+)
+
+(define-read-only (get-total-value-locked)
+    (var-get total-staked)
 )
