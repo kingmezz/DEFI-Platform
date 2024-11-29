@@ -70,3 +70,29 @@
     { user: principal, proposal-id: uint }
     { voted: bool, vote: bool }
 )
+
+;; Staking Functions
+
+(define-public (stake (amount uint) (pool-name (string-ascii 32)))
+    (let (
+        (user-balance (unwrap! (map-get? user-balances tx-sender) (err u404)))
+        (pool (unwrap! (map-get? staking-pools pool-name) (err u404)))
+    )
+    (begin
+        ;; Update user staking balance
+        (map-set user-balances tx-sender 
+            (merge user-balance {
+                staked: (+ (get staked user-balance) amount)
+            })
+        )
+        ;; Update pool
+        (map-set staking-pools pool-name
+            (merge pool {
+                total-staked: (+ (get total-staked pool) amount),
+                last-update-time: block-height
+            })
+        )
+        (var-set total-staked (+ (var-get total-staked) amount))
+        (ok true)
+    ))
+)
