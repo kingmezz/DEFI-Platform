@@ -209,3 +209,38 @@
     ))
 )
 
+
+(define-public (vote (proposal-id uint) (vote-for bool))
+    (let (
+        (proposal (unwrap! (map-get? governance-proposals proposal-id) (err u404)))
+        (user-balance (unwrap! (map-get? user-balances tx-sender) (err u404)))
+        (vote-weight (get governance-tokens user-balance))
+    )
+    (if (and
+            (>= block-height (get start-block proposal))
+            (<= block-height (get end-block proposal))
+            (not (get voted (default-to 
+                { voted: false, vote: false } 
+                (map-get? user-votes { user: tx-sender, proposal-id: proposal-id }))))
+        )
+        (begin
+            (map-set governance-proposals proposal-id
+                (merge proposal {
+                    for-votes: (if vote-for 
+                        (+ (get for-votes proposal) vote-weight)
+                        (get for-votes proposal)),
+                    against-votes: (if vote-for
+                        (get against-votes proposal)
+                        (+ (get against-votes proposal) vote-weight))
+                })
+            )
+            (map-set user-votes 
+                { user: tx-sender, proposal-id: proposal-id }
+                { voted: true, vote: vote-for }
+            )
+            (ok true)
+        )
+        ERR-INVALID-VOTE
+    ))
+)
+
