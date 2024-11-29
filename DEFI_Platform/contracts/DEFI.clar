@@ -184,3 +184,28 @@
         ERR-LIQUIDATION-FAILED
     ))
 )
+
+;; Governance Functions
+
+(define-public (create-proposal (description (string-ascii 256)))
+    (let (
+        (user-balance (unwrap! (map-get? user-balances tx-sender) (err u404)))
+        (proposal-id (var-get proposal-count))
+    )
+    (begin
+        (map-set governance-proposals proposal-id
+            {
+                proposer: tx-sender,
+                description: description,
+                for-votes: u0,
+                against-votes: u0,
+                start-block: block-height,
+                end-block: (+ block-height u14400), ;; ~1 day voting period
+                executed: false
+            }
+        )
+        (var-set proposal-count (+ proposal-id u1))
+        (ok proposal-id)
+    ))
+)
+
