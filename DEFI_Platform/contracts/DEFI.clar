@@ -154,3 +154,33 @@
     (ok (* (* (get staked user-balance) (get reward-rate pool)) time-elapsed))
 )
 )
+
+;; Liquidation Functions
+
+(define-public (liquidate (user principal) (token-name (string-ascii 32)))
+    (let (
+        (target-balance (unwrap! (map-get? user-balances user) (err u404)))
+        (pool (unwrap! (map-get? lending-pools token-name) (err u404)))
+        (collateral-value (get collateral target-balance))
+        (borrowed-value (get borrowed target-balance))
+        (minimum-required (* borrowed-value (var-get minimum-collateral-ratio)))
+    )
+    (if (< collateral-value minimum-required)
+        (begin
+            ;; Calculate liquidation amount
+            (let (
+                (liquidation-amount (/ borrowed-value u2)) ;; Liquidate 50% of position
+                (penalty-amount (* liquidation-amount (var-get liquidation-penalty)))
+            )
+            ;; Update balances
+            (map-set user-balances user 
+                (merge target-balance {
+                    borrowed: (- borrowed-value liquidation-amount),
+                    collateral: (- collateral-value (+ liquidation-amount penalty-amount))
+                })
+            )
+            (ok true))
+        )
+        ERR-LIQUIDATION-FAILED
+    ))
+)
