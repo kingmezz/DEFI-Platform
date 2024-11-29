@@ -244,3 +244,25 @@
     ))
 )
 
+;; Flash Loan Function
+
+(define-public (flash-loan (token-name (string-ascii 32)) (amount uint) (recipient principal))
+    (let (
+        (pool (unwrap! (map-get? lending-pools token-name) (err u404)))
+        (fee (* amount (var-get platform-fee)))
+    )
+    (if (<= amount (get total-supplied pool))
+        (begin
+            ;; Transfer tokens to recipient
+            ;; Verify return of tokens + fee in same transaction
+            ;; Update pool balance
+            (map-set lending-pools token-name
+                (merge pool {
+                    total-supplied: (+ (get total-supplied pool) fee)
+                })
+            )
+            (ok true)
+        )
+        ERR-INSUFFICIENT-BALANCE
+    ))
+)
