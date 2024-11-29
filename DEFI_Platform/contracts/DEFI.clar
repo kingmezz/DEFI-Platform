@@ -96,3 +96,51 @@
         (ok true)
     ))
 )
+
+(define-public (unstake (amount uint) (pool-name (string-ascii 32)))
+    (let (
+        (user-balance (unwrap! (map-get? user-balances tx-sender) (err u404)))
+        (pool (unwrap! (map-get? staking-pools pool-name) (err u404)))
+    )
+    (if (>= (get staked user-balance) amount)
+        (begin
+            ;; Claim rewards before unstaking
+            (try! (claim-staking-rewards pool-name))
+            ;; Update user staking balance
+            (map-set user-balances tx-sender 
+                (merge user-balance {
+                    staked: (- (get staked user-balance) amount)
+                })
+            )
+            ;; Update pool
+            (map-set staking-pools pool-name
+                (merge pool {
+                    total-staked: (- (get total-staked pool) amount),
+                    last-update-time: block-height
+                })
+            )
+            (var-set total-staked (- (var-get total-staked) amount))
+            (ok true)
+        )
+        ERR-INSUFFICIENT-BALANCE
+    ))
+)
+
+;; Reward Functions
+
+(define-public (claim-staking-rewards (pool-name (string-ascii 32)))
+    (let (
+        (user-balance (unwrap! (map-get? user-balances tx-sender) (err u404)))
+        (pool (unwrap! (map-get? staking-pools pool-name) (err u404)))
+        (rewards-earned (calculate-rewards tx-sender pool-name))
+    )
+    (begin
+        (map-set user-balances tx-sender 
+            (merge user-balance {
+                rewards: (+ (get rewards user-balance) rewards-earned),
+                last-reward-claim: block-height
+            })
+        )
+        (ok rewards-earned)
+    ))
+)
