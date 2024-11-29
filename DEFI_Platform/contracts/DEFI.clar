@@ -132,7 +132,7 @@
     (let (
         (user-balance (unwrap! (map-get? user-balances tx-sender) (err u404)))
         (pool (unwrap! (map-get? staking-pools pool-name) (err u404)))
-        (rewards-earned (calculate-rewards tx-sender pool-name))
+        (rewards-earned (unwrap! (calculate-rewards tx-sender pool-name) (err u400)))
     )
     (begin
         (map-set user-balances tx-sender 
@@ -143,4 +143,14 @@
         )
         (ok rewards-earned)
     ))
+)
+
+(define-read-only (calculate-rewards (user principal) (pool-name (string-ascii 32)))
+    (let (
+        (user-balance (unwrap! (map-get? user-balances user) (err u404)))
+        (pool (unwrap! (map-get? staking-pools pool-name) (err u404)))
+        (time-elapsed (- block-height (get last-reward-claim user-balance)))
+    )
+    (ok (* (* (get staked user-balance) (get reward-rate pool)) time-elapsed))
+)
 )
